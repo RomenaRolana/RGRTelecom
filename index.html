@@ -19,52 +19,49 @@
 </div>
 
 <script>
-function decimalToHex(d) {
-    // Функція для перетворення десяткових чисел в шістнадцятковий формат
-    return d.toString(16).toUpperCase().padStart(2, '0');
+function decimalToHex(d, padding = 2) {
+    return d.toString(16).toUpperCase().padStart(padding, '0');
 }
 
 function dateToHex(date) {
-// Розбиття введеної дати на день, місяць та рік та конвертація кожного компонента в шістнадцятковий формат
-const parts = date.split('.');
-const day = parseInt(parts[0], 10);
-const month = parseInt(parts[1], 10);
-const year = parseInt(parts[2], 10);
-return decimalToHex(day) + decimalToHex(month) + decimalToHex(year);
+    const parts = date.split('.');
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const year = parseInt(parts[2], 10);
+    return decimalToHex(day) + decimalToHex(month) + decimalToHex(year, 4);
 }
 
-function hammingEncode(n) {
-// Функція для обчислення коду Хемінга (7, 4) з чотирьох бітів вхідних даних
-const p1 = (n[0] ^ n[1] ^ n[3]) % 2;
-const p2 = (n[0] ^ n[2] ^ n[3]) % 2;
-const p3 = (n[1] ^ n[2] ^ n[3]) % 2;
-return [p1, p2, n[0], p3, n[1], n[2], n[3]];
+function hammingEncode(bits) {
+    const n = bits.map(x => parseInt(x, 10)); // Ensure the array is in integer form
+    const p1 = (n[0] ^ n[1] ^ n[3]) % 2;
+    const p2 = (n[0] ^ n[2] ^ n[3]) % 2;
+    const p3 = (n[1] ^ n[2] ^ n[3]) % 2;
+    return [p1, p2, n[0], p3, n[1], n[2], n[3]].join('');
 }
 
 function calculateCRC(input, poly) {
-// Обчислення циклічного надлишкового коду (CRC) за допомогою заданого полінома
-let crc = input;
-for (let i = 0; i < input.length; i++) {
-if ((crc & 0x80) != 0) {
-crc = ((crc << 1) & 0xFF) ^ poly;
-} else {
-crc = (crc << 1) & 0xFF;
-}
-}
-return crc;
+    let crc = input;
+    for (let i = 0; i < 8 * input.length; i++) {
+        if ((crc & 0x8000) != 0) { // Check if the leading bit is 1
+            crc = ((crc << 1) & 0xFFFF) ^ poly;
+        } else {
+            crc = (crc << 1) & 0xFFFF;
+        }
+    }
+    return crc;
 }
 
 function generateEncodeDecode() {
-// Основна функція, яка викликається при натисканні на кнопку
-const dateInput = document.getElementById('birthdate').value; // Зчитування дати введеної користувачем
-const dateHex = dateToHex(dateInput); // Конвертація введеної дати в шістнадцяткове значення
-const inputBits = parseInt(dateHex, 16).toString(2).padStart(24, '0').split('').map(x => parseInt(x, 10)); // Перетворення шістнадцяткового значення в бінарний формат
-const results = document.getElementById('results'); // Звернення до блоку для виведення результатів
-const encodedHamming = hammingEncode(inputBits.slice(0, 4)); // Обчислення коду Хемінга для перших чотирьох бітів
-const crc = calculateCRC(parseInt(dateHex, 16), 0x15); // Обчислення CRC
-results.innerHTML = <p>Вхідне шістнадцяткове значення: ${dateHex}</p> <p>Код Хемінга (7, 4): ${encodedHamming.join('')}</p> <p>CRC з поліномом 0x15: ${crc.toString(16).toUpperCase()}</p>;
+    const dateInput = document.getElementById('birthdate').value;
+    const dateHex = dateToHex(dateInput);
+    const inputBits = parseInt(dateHex, 16).toString(2).padStart(32, '0').slice(0, 16).match(/.{1,4}/g); // Split hex into groups of 4 bits
+    const results = document.getElementById('results');
+    const encodedHamming = inputBits.map(bits => hammingEncode(bits));
+    const crc = calculateCRC(parseInt(dateHex, 16), 0x1021); // CRC-16-CCITT polynomial
+    results.innerHTML = `<p>Вхідне шістнадцяткове значення: ${dateHex}</p> <p>Код Хемінга (7, 4): ${encodedHamming}</p> <p>CRC з поліномом 0x1021: ${crc.toString(16).toUpperCase()}</p>`;
 }
 
 </script>
 </body>
 </html>
+
